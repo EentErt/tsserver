@@ -5,21 +5,28 @@ const PORT = 8080;
 app.use("/app", middlewareMetricsInc);
 app.use("/app", express.static("./src/app"));
 app.use(middlewareLogResponses);
-app.use("/api/metrics", handlerHits);
-app.use("/api/reset", handlerReset);
+app.use("/admin/metrics", handlerHits);
+app.use("/admin/reset", handlerReset);
 app.listen(PORT, () => {
     console.log(`Server is running at http://localhost:${PORT}`);
 });
 app.get("/api/healthz", handlerReadiness);
-app.get("/api/metrics", handlerHits);
+app.get("/admin/metrics", handlerHits);
 function handlerReadiness(req, res) {
     res.set("Content-Type", "text/plain");
     res.status(200).send("OK");
     return;
 }
 function handlerHits(req, res) {
-    res.set("Content-Type", "text/plain");
-    res.status(200).send("Hits: " + config.fileserverHits);
+    res.set("Content-Type", "text/html; charset=utf-8");
+    res.status(200).send(`
+<html>
+  <body>
+    <h1>Welcome, Chirpy Admin</h1>
+    <p>Chirpy has been visited ${config.fileserverHits} times!</p>
+  </body>
+</html>
+  `);
     return;
 }
 function handlerReset(req, res) {
