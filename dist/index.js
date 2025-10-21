@@ -1,17 +1,21 @@
 import express from "express";
 import { config } from "./config.js";
+import { BadRequestError, UnauthorizedError, ForbiddenError, NotFoundError } from "./errors.js";
 const app = express();
 const PORT = 8080;
 app.use("/app", middlewareMetricsInc);
 app.use("/app", express.static("./src/app"));
 app.use(middlewareLogResponses);
 app.use("/admin/metrics", handlerHits);
-app.use("/admin/reset", handlerReset);
+app.use(express.json());
 app.listen(PORT, () => {
     console.log(`Server is running at http://localhost:${PORT}`);
 });
+app.post("/api/validate_chirp", handlerValidateChirp);
+app.post("/admin/reset", handlerReset);
 app.get("/api/healthz", handlerReadiness);
 app.get("/admin/metrics", handlerHits);
+app.use(errorHandler);
 function handlerReadiness(req, res) {
     res.set("Content-Type", "text/plain");
     res.status(200).send("OK");
@@ -28,6 +32,33 @@ function handlerHits(req, res) {
 </html>
   `);
     return;
+}
+function handlerValidateChirp(req, res) {
+    try {
+        const parsedBody = req.body;
+        const cleanedChirp = cleanChirp(parsedBody.body);
+        if (parsedBody.body.length > 140) {
+            throw new BadRequestError("Chirp is too long. Max length is 140");
+        }
+        res.header("Content-Type", "application/json");
+        res.status(200).send(JSON.stringify({ "cleanedBody": cleanedChirp }));
+    }
+    catch (error) {
+        throw error;
+    }
+}
+function cleanChirp(chirp) {
+    const bannedWords = ["kerfuffle", "sharbert", "fornax"];
+    let wordList = chirp.split(" ");
+    let cleanedList = [];
+    for (let word of wordList) {
+        if (bannedWords.includes(word.toLowerCase())) {
+            cleanedList.push("****");
+            continue;
+        }
+        cleanedList.push(word);
+    }
+    return cleanedList.join(" ");
 }
 function handlerReset(req, res) {
     config.fileserverHits = 0;
@@ -46,4 +77,23 @@ function middlewareLogResponses(req, res, next) {
 function middlewareMetricsInc(req, res, next) {
     config.fileserverHits += 1;
     next();
+}
+function errorHandler(err, req, res, next) {
+    console.error(err);
+    if (err instanceof BadRequestError) {
+        res.status(400);
+    }
+    else if (err instanceof UnauthorizedError) {
+        res.status(401);
+    }
+    else if (err instanceof ForbiddenError) {
+        res.status(403);
+    }
+    else if (err instanceof NotFoundError) {
+        res.status(404);
+    }
+    else {
+        res.status(500);
+    }
+    res.send(JSON.stringify({ "error": err.message }));
 }
