@@ -1,6 +1,12 @@
 import express from "express";
 import { config } from "./config.js";
 import { BadRequestError, UnauthorizedError, ForbiddenError, NotFoundError } from "./errors.js";
+import { createUser } from "./db/queries/users.js";
+import postgres from "postgres";
+import { migrate } from "drizzle-orm/postgres-js/migrator";
+import { drizzle } from "drizzle-orm/postgres-js";
+const migrationClient = postgres(config.db.url, { max: 1 });
+await migrate(drizzle(migrationClient), config.db.migrationConfig);
 const app = express();
 const PORT = 8080;
 app.use("/app", middlewareMetricsInc);
@@ -12,10 +18,24 @@ app.listen(PORT, () => {
     console.log(`Server is running at http://localhost:${PORT}`);
 });
 app.post("/api/validate_chirp", handlerValidateChirp);
+app.post("/api/users", handlerCreateUser);
 app.post("/admin/reset", handlerReset);
 app.get("/api/healthz", handlerReadiness);
 app.get("/admin/metrics", handlerHits);
 app.use(errorHandler);
+async function handlerCreateUser(req, res) {
+    try {
+        const user = {
+            email: req.body.email,
+        };
+        const newUser = await createUser(user);
+        res.header("Content-Type", "application/json");
+        res.status(201).send(JSON.stringify(newUser));
+    }
+    catch (error) {
+        throw error;
+    }
+}
 function handlerReadiness(req, res) {
     res.set("Content-Type", "text/plain");
     res.status(200).send("OK");

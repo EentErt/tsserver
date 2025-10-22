@@ -1,10 +1,10 @@
 import { defineConfig } from "drizzle-kit";
 
 export default defineConfig({
-  schema: "src/<path_to_schema>",
-  out: "src/<path_to_generated_files>",
+  schema: "src/db/schemas",
+  out: "src/db",
   dialect: "postgresql",
   dbCredentials: {
-    url: "your_connection_string",
+    url: "postgres://postgres:postgres@localhost:5432/chirpy?sslmode=disable",
   },
 });
