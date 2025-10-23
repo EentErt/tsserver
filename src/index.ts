@@ -2,7 +2,7 @@ import express, { Response, Request, NextFunction } from "express";
 import { config } from "./config.js";
 import { BadRequestError, UnauthorizedError, ForbiddenError, NotFoundError } from "./errors.js";
 import { NewUser, users } from "./db/schemas/schema.js";
-import { createUser } from "./db/queries/users.js";
+import { createUser, resetUsers } from "./db/queries/users.js";
 
 import postgres from "postgres";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
@@ -97,7 +97,13 @@ function cleanChirp(chirp: string): string {
   return cleanedList.join(" ");
 }
 
-function handlerReset(req: Request, res: express.Response): void {
+async function handlerReset(req: Request, res: express.Response): Promise<void> {
+  if (config.platform !== "dev") {
+    throw new ForbiddenError("Reset is only allowed in dev platform");
+  }
+
+  await resetUsers();
+
   config.fileserverHits = 0;
   res.set("Content-Type", "text/plain");
   res.status(200).send("OK");

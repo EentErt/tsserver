@@ -1,7 +1,7 @@
 import express from "express";
 import { config } from "./config.js";
 import { BadRequestError, UnauthorizedError, ForbiddenError, NotFoundError } from "./errors.js";
-import { createUser } from "./db/queries/users.js";
+import { createUser, resetUsers } from "./db/queries/users.js";
 import postgres from "postgres";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { drizzle } from "drizzle-orm/postgres-js";
@@ -80,7 +80,11 @@ function cleanChirp(chirp) {
     }
     return cleanedList.join(" ");
 }
-function handlerReset(req, res) {
+async function handlerReset(req, res) {
+    if (config.platform !== "dev") {
+        throw new ForbiddenError("Reset is only allowed in dev platform");
+    }
+    await resetUsers();
     config.fileserverHits = 0;
     res.set("Content-Type", "text/plain");
     res.status(200).send("OK");
