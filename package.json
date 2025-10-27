@@ -21,6 +21,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
+    "argon2": "^0.44.0",
     "drizzle-orm": "^0.44.6",
     "express": "^5.1.0",
     "postgres": "^3.4.7"

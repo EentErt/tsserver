@@ -8,6 +8,34 @@
       "when": 1761158504415,
       "tag": "0000_same_nova",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1761503170460,
+      "tag": "0001_common_scream",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1761503821900,
+      "tag": "0002_lyrical_scourge",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1761531351003,
+      "tag": "0003_lyrical_living_mummy",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1761532405064,
+      "tag": "0004_thin_black_tarantula",
+      "breakpoints": true
     }
   ]
 }
