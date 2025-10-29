@@ -5,7 +5,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "vitest --run",
     "db:update": "drizzle-kit generate && drizzle-kit migrate",
     "build": "npx tsc",
     "start": "node dist/index.js",
@@ -16,14 +16,17 @@
   "license": "ISC",
   "devDependencies": {
     "@types/express": "^5.0.3",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^24.6.2",
     "drizzle-kit": "^0.31.5",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.4"
   },
   "dependencies": {
     "argon2": "^0.44.0",
     "drizzle-orm": "^0.44.6",
     "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
     "postgres": "^3.4.7"
   }
 }
