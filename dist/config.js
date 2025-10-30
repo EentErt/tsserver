@@ -1,6 +1,7 @@
 process.loadEnvFile();
 envOrThrow("DB_URL");
 envOrThrow("PLATFORM");
+envOrThrow("SECRET");
 const migrationConfig = {
     migrationsFolder: "./src/db",
 };
@@ -12,6 +13,7 @@ export const config = {
         migrationConfig: migrationConfig,
     },
     platform: process.env.PLATFORM,
+    secret: process.env.SECRET,
 };
 function envOrThrow(key) {
     if (!process.env[key]) {

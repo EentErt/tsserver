@@ -1,5 +1,7 @@
 import { verify, hash } from "argon2";
 import jwt, { JwtPayload } from "jsonwebtoken";
+import { UnauthorizedError } from "./errors.js";
+import { Request } from "express";
 
 
 export async function hashPassword(password: string): Promise<string> {
@@ -19,7 +21,7 @@ export function makeJWT(userID: string, expiresIn: number, secret: string): stri
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + expiresIn,
     }
-    const token = jwt.sign(load, secret, {expiresIn: expiresIn })
+    const token = jwt.sign(load, secret)
     return token;
 }
 
@@ -30,4 +32,17 @@ export function validateJWT(tokenString: string, secret: string): string {
     } catch (error) {
         throw error;
     }
+}
+
+export function getBearerToken(req: Request): string {
+    if (!req.headers.authorization) {
+        throw new UnauthorizedError("No authorization");
+    }
+
+    const token = req.headers.authorization as string;
+    if (!token) {
+        throw new UnauthorizedError("No authorization token found");
+    }
+
+    return token.split(" ")[1];
 }

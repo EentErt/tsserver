@@ -3,6 +3,7 @@ import type { MigrationConfig } from "drizzle-orm/migrator";
 process.loadEnvFile();
 envOrThrow("DB_URL");
 envOrThrow("PLATFORM");
+envOrThrow("SECRET");
 
 const migrationConfig: MigrationConfig = {
   migrationsFolder: "./src/db",
@@ -13,6 +14,7 @@ type APIConfig = {
     dbURL: string;
     db: DBConfig;
     platform: string;
+    secret: string;
 };
 
 type DBConfig = {
@@ -28,6 +30,7 @@ export const config: APIConfig = {
         migrationConfig: migrationConfig,
     },
     platform: process.env.PLATFORM!,
+    secret: process.env.SECRET!,
 }
 
 function envOrThrow(key: string): void {

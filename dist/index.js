@@ -6,7 +6,7 @@ import { createChirp, getChirpById, getChirps } from "./db/queries/chirps.js";
 import postgres from "postgres";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { drizzle } from "drizzle-orm/postgres-js";
-import { checkPasswordHash, hashPassword } from "./auth.js";
+import { checkPasswordHash, hashPassword, makeJWT, validateJWT, getBearerToken } from "./auth.js";
 const migrationClient = postgres(config.db.url, { max: 1 });
 await migrate(drizzle(migrationClient), config.db.migrationConfig);
 const app = express();
@@ -57,8 +57,17 @@ async function handlerLogin(req, res) {
         throw new UnauthorizedError("Invalid password");
     }
     const { hashedPassword, ...preview } = user;
+    let expiresIn = req.body.expiresInSeconds ? req.body.expiresInSeconds : 3600;
+    if (expiresIn > 3600) {
+        expiresIn = 3600;
+    }
+    const token = makeJWT(user.id.toString(), expiresIn, config.secret);
+    const tokenResponse = {
+        ...preview,
+        token: token,
+    };
     res.header("Content-Type", "application/json");
-    res.status(200).send(JSON.stringify(preview));
+    res.status(200).send(JSON.stringify(tokenResponse));
 }
 function handlerReadiness(req, res) {
     res.set("Content-Type", "text/plain");
@@ -103,9 +112,11 @@ async function handlerGetChirpById(req, res) {
 }
 async function handlerPostChirps(req, res) {
     try {
+        const token = getBearerToken(req);
+        const userID = validateJWT(token, config.secret);
         const newChirp = {
             body: validateChirp(req.body.body),
-            userId: req.body.userId,
+            userId: userID,
         };
         const chirp = await createChirp(newChirp);
         res.header("Content-Type", "application/json");

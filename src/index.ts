@@ -9,7 +9,7 @@ import { createChirp, getChirpById, getChirps } from "./db/queries/chirps.js";
 import postgres from "postgres";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { drizzle } from "drizzle-orm/postgres-js";
-import { checkPasswordHash, hashPassword } from "./auth.js";
+import { checkPasswordHash, hashPassword, makeJWT, validateJWT, getBearerToken } from "./auth.js";
 
 const migrationClient = postgres(config.db.url, { max: 1 });
 await migrate(drizzle(migrationClient), config.db.migrationConfig);
@@ -73,8 +73,24 @@ async function handlerLogin(req: Request, res: Response): Promise<void> {
 
   const {hashedPassword, ...preview} = user;
 
+  let expiresIn = req.body.expiresInSeconds? req.body.expiresInSeconds : 3600;
+  if (expiresIn > 3600) {
+    expiresIn=3600;
+  }
+
+  type TokenResponse = UserPreview & {
+    token: string;
+  }
+
+  const token = makeJWT(user.id.toString(), expiresIn, config.secret);
+
+  const tokenResponse: TokenResponse = {
+    ...preview,
+    token: token,
+  }
+
   res.header("Content-Type", "application/json");
-  res.status(200).send(JSON.stringify(preview))
+  res.status(200).send(JSON.stringify(tokenResponse))
 }
 
 function handlerReadiness(req: Request, res: express.Response): void {
@@ -122,9 +138,13 @@ async function handlerGetChirpById(req: Request, res: Response): Promise<void> {
 
 async function handlerPostChirps(req: Request, res: Response): Promise<void> {
   try {
+    const token = getBearerToken(req);
+    const userID = validateJWT(token, config.secret);
+
+
     const newChirp: NewChirp = {
       body: validateChirp(req.body.body),
-      userId: req.body.userId,
+      userId: userID,
     }
 
     const chirp = await createChirp(newChirp);
