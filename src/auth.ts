@@ -48,6 +48,19 @@ export function getBearerToken(req: Request): string {
     return token.split(" ")[1];
 }
 
+export function getAPIKey(req: Request): string {
+    if (!req.headers.authorization) {
+        throw new UnauthorizedError("Unauthorized");
+    }
+
+    const apiKey = req.headers.authorization as string;
+    if (!apiKey) {
+        throw new UnauthorizedError("No API key found");
+    }
+
+    return apiKey.split(" ")[1];
+}
+
 export function makeRefreshToken(): string {
     return randomBytes(32).toString("hex");
 }

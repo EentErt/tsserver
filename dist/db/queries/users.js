@@ -19,6 +19,13 @@ export async function getUserFromRefreshToken(token) {
         .where(eq(refreshTokens.token, token));
     return result.users;
 }
+export async function updateUser(id, user) {
+    const [result] = await db.update(users).set(user).where(eq(users.id, id)).returning();
+    return result;
+}
+export async function upgradeUser(id) {
+    await db.update(users).set({ isChirpyRed: true }).where(eq(users.id, id));
+}
 export async function resetUsers() {
     await db.delete(users);
 }

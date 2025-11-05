@@ -4,6 +4,7 @@ process.loadEnvFile();
 envOrThrow("DB_URL");
 envOrThrow("PLATFORM");
 envOrThrow("SECRET");
+envOrThrow("POLKA_KEY");
 
 const migrationConfig: MigrationConfig = {
   migrationsFolder: "./src/db",
@@ -15,6 +16,7 @@ type APIConfig = {
     db: DBConfig;
     platform: string;
     secret: string;
+    polkaKey: string;
 };
 
 type DBConfig = {
@@ -31,6 +33,7 @@ export const config: APIConfig = {
     },
     platform: process.env.PLATFORM!,
     secret: process.env.SECRET!,
+    polkaKey: process.env.POLKA_KEY!,
 }
 
 function envOrThrow(key: string): void {

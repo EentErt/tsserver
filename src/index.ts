@@ -4,14 +4,13 @@ import { BadRequestError, UnauthorizedError, ForbiddenError, NotFoundError } fro
 import { NewRefreshToken, NewUser, users } from "./db/schemas/schema.js";
 import { NewChirp, chirps } from "./db/schemas/schema.js";
 import { createRefreshToken, getRefreshToken, revokeRefreshToken } from "./db/queries/refresh_tokens.js";
-import { createUser, getUserByEmail, getUserFromRefreshToken, resetUsers } from "./db/queries/users.js";
-import { createChirp, getChirpById, getChirps } from "./db/queries/chirps.js";
+import { createUser, getUserByEmail, getUserFromRefreshToken, resetUsers, updateUser, upgradeUser } from "./db/queries/users.js";
+import { createChirp, deleteChirp, getChirpById, getChirps } from "./db/queries/chirps.js";
 
 import postgres from "postgres";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { drizzle } from "drizzle-orm/postgres-js";
-import { checkPasswordHash, hashPassword, makeJWT, validateJWT, getBearerToken, makeRefreshToken } from "./auth.js";
-import { JsonWebTokenError } from "jsonwebtoken";
+import { checkPasswordHash, hashPassword, makeJWT, validateJWT, getBearerToken, makeRefreshToken, getAPIKey } from "./auth.js";
 
 const migrationClient = postgres(config.db.url, { max: 1 });
 await migrate(drizzle(migrationClient), config.db.migrationConfig);
@@ -39,6 +38,9 @@ app.get("/api/chirps/:chirpID", handlerGetChirpById);
 app.post("/api/login", handlerLogin);
 app.post("/api/refresh", handlerRefresh);
 app.post("/api/revoke", handlerRevoke);
+app.put("/api/users", handlerUpdateUser);
+app.delete("/api/chirps/:chirpID", handlerDeleteChirp);
+app.post("/api/polka/webhooks", handlerUpgradeUser);
 
 app.use(errorHandler);
 
@@ -62,6 +64,50 @@ async function handlerCreateUser(req: Request, res: Response): Promise<void> {
   } catch (error) {
     throw error;
   }
+}
+
+async function handlerUpdateUser(req: Request, res: Response): Promise<void> {
+  try {
+    const token = getBearerToken(req);
+    const userID = validateJWT(token, config.secret);
+
+    const newHashedPassword = await hashPassword(req.body.password);
+    
+    const newUser: NewUser = {
+      email: req.body.email,
+      hashedPassword: newHashedPassword,
+    }
+
+    const updatedUser = await updateUser(userID, newUser);
+    const {hashedPassword, ...preview} = newUser;
+    res.header("Content-Type", "application/json");
+    res.status(200).send(JSON.stringify(preview));
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function handlerUpgradeUser(req: Request, res: Response): Promise<void> {
+  try {
+    const apiKey = getAPIKey(req);
+    if (apiKey !== config.polkaKey) {
+      throw new UnauthorizedError("Invalid API key");
+    }
+  } catch (error) {
+    throw error;
+  }
+  if (req.body.event !== "user.upgraded") {
+    res.status(204).send();
+    return; 
+  }
+
+  try {
+    await upgradeUser(req.body.data.userId);
+  } catch (error) {
+    throw new NotFoundError("");
+  }
+
+  res.status(204).send();
 }
 
 async function handlerLogin(req: Request, res: Response): Promise<void> {
@@ -121,8 +167,6 @@ async function handlerRefresh(req: Request, res: Response): Promise<void> {
     }
 
     const newToken = makeJWT(user.id.toString(), 3600, config.secret);
-
-
 
     res.header("Content-Type", "application/json");
     res.status(200).send(JSON.stringify({ token: newToken }));
@@ -200,6 +244,26 @@ async function handlerPostChirps(req: Request, res: Response): Promise<void> {
     const chirp = await createChirp(newChirp);
     res.header("Content-Type", "application/json");
     res.status(201).send(chirp);
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function handlerDeleteChirp(req: Request, res: Response): Promise<void> {
+  try {
+    const token = getBearerToken(req);
+    const userID = validateJWT(token, config.secret);
+
+    const chirp = await getChirpById(req.params.chirpID);
+    if (!chirp) {
+      throw new NotFoundError("Chirp not found");
+    } else if (chirp.userId !== userID) {
+      throw new ForbiddenError("Cannot delete another user's chirp");
+    }
+
+    await deleteChirp(req.params.chirpID);
+
+    res.status(204).send();
   } catch (error) {
     throw error;
   }

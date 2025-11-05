@@ -38,6 +38,16 @@ export function getBearerToken(req) {
     }
     return token.split(" ")[1];
 }
+export function getAPIKey(req) {
+    if (!req.headers.authorization) {
+        throw new UnauthorizedError("Unauthorized");
+    }
+    const apiKey = req.headers.authorization;
+    if (!apiKey) {
+        throw new UnauthorizedError("No API key found");
+    }
+    return apiKey.split(" ")[1];
+}
 export function makeRefreshToken() {
     return randomBytes(32).toString("hex");
 }
