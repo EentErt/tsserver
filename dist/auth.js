@@ -1,6 +1,7 @@
 import { verify, hash } from "argon2";
 import jwt from "jsonwebtoken";
 import { UnauthorizedError } from "./errors.js";
+import { randomBytes } from "node:crypto";
 export async function hashPassword(password) {
     const hashedPassword = await hash(password);
     return hashedPassword;
@@ -24,7 +25,7 @@ export function validateJWT(tokenString, secret) {
         return token.sub;
     }
     catch (error) {
-        throw error;
+        throw new UnauthorizedError("Invalid access token");
     }
 }
 export function getBearerToken(req) {
@@ -36,4 +37,7 @@ export function getBearerToken(req) {
         throw new UnauthorizedError("No authorization token found");
     }
     return token.split(" ")[1];
+}
+export function makeRefreshToken() {
+    return randomBytes(32).toString("hex");
 }

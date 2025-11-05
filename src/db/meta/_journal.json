@@ -36,6 +36,13 @@
       "when": 1761532405064,
       "tag": "0004_thin_black_tarantula",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1762063483360,
+      "tag": "0005_amused_stingray",
+      "breakpoints": true
     }
   ]
 }

@@ -1,12 +1,13 @@
 import express from "express";
 import { config } from "./config.js";
 import { BadRequestError, UnauthorizedError, ForbiddenError, NotFoundError } from "./errors.js";
-import { createUser, getUserByEmail, resetUsers } from "./db/queries/users.js";
+import { createRefreshToken, getRefreshToken, revokeRefreshToken } from "./db/queries/refresh_tokens.js";
+import { createUser, getUserByEmail, getUserFromRefreshToken, resetUsers } from "./db/queries/users.js";
 import { createChirp, getChirpById, getChirps } from "./db/queries/chirps.js";
 import postgres from "postgres";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { drizzle } from "drizzle-orm/postgres-js";
-import { checkPasswordHash, hashPassword, makeJWT, validateJWT, getBearerToken } from "./auth.js";
+import { checkPasswordHash, hashPassword, makeJWT, validateJWT, getBearerToken, makeRefreshToken } from "./auth.js";
 const migrationClient = postgres(config.db.url, { max: 1 });
 await migrate(drizzle(migrationClient), config.db.migrationConfig);
 const app = express();
@@ -27,6 +28,8 @@ app.get("/admin/metrics", handlerHits);
 app.get("/api/chirps", handlerGetChirps);
 app.get("/api/chirps/:chirpID", handlerGetChirpById);
 app.post("/api/login", handlerLogin);
+app.post("/api/refresh", handlerRefresh);
+app.post("/api/revoke", handlerRevoke);
 app.use(errorHandler);
 async function handlerCreateUser(req, res) {
     try {
@@ -57,17 +60,55 @@ async function handlerLogin(req, res) {
         throw new UnauthorizedError("Invalid password");
     }
     const { hashedPassword, ...preview } = user;
-    let expiresIn = req.body.expiresInSeconds ? req.body.expiresInSeconds : 3600;
-    if (expiresIn > 3600) {
-        expiresIn = 3600;
-    }
-    const token = makeJWT(user.id.toString(), expiresIn, config.secret);
+    const refreshToken = {
+        token: makeRefreshToken(),
+        userId: user.id,
+        expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000), // 60 days
+    };
+    await createRefreshToken(refreshToken);
+    const token = makeJWT(user.id.toString(), 3600, config.secret);
     const tokenResponse = {
         ...preview,
         token: token,
+        refreshToken: refreshToken.token,
     };
     res.header("Content-Type", "application/json");
     res.status(200).send(JSON.stringify(tokenResponse));
+}
+async function handlerRefresh(req, res) {
+    try {
+        const token = getBearerToken(req);
+        const valid = await getRefreshToken(token);
+        if (!valid) {
+            throw new UnauthorizedError("Invalid refresh token");
+        }
+        else if (valid.expiresAt < new Date()) {
+            throw new UnauthorizedError("Refresh token expired");
+        }
+        else if (valid.revokedAt) {
+            throw new UnauthorizedError("Refresh token revoked");
+        }
+        const user = await getUserFromRefreshToken(token);
+        if (!user) {
+            throw new NotFoundError("User not found");
+        }
+        const newToken = makeJWT(user.id.toString(), 3600, config.secret);
+        res.header("Content-Type", "application/json");
+        res.status(200).send(JSON.stringify({ token: newToken }));
+    }
+    catch (error) {
+        throw error;
+    }
+}
+async function handlerRevoke(req, res) {
+    try {
+        const token = getBearerToken(req);
+        await revokeRefreshToken(token);
+        res.status(204).send();
+    }
+    catch (error) {
+        throw error;
+    }
 }
 function handlerReadiness(req, res) {
     res.set("Content-Type", "text/plain");
