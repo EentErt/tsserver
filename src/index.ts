@@ -5,7 +5,7 @@ import { NewRefreshToken, NewUser, users } from "./db/schemas/schema.js";
 import { NewChirp, chirps } from "./db/schemas/schema.js";
 import { createRefreshToken, getRefreshToken, revokeRefreshToken } from "./db/queries/refresh_tokens.js";
 import { createUser, getUserByEmail, getUserFromRefreshToken, resetUsers, updateUser, upgradeUser } from "./db/queries/users.js";
-import { createChirp, deleteChirp, getChirpById, getChirps } from "./db/queries/chirps.js";
+import { createChirp, deleteChirp, getChirpById, getChirps, getChirpsByAuthorId } from "./db/queries/chirps.js";
 
 import postgres from "postgres";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
@@ -207,6 +207,22 @@ function handlerHits(req: Request, res: express.Response): void {
 }
 
 async function handlerGetChirps(req: Request, res: Response): Promise<void> {
+  const authorId = req.query.authorId ? req.query.authorId : "";
+  if (typeof authorId !== "string") {
+    throw new BadRequestError("authorId must be a string");
+  }
+
+  if (authorId) {
+    try {
+      const chirps = await getChirpsByAuthorId(authorId);
+      res.header("Content-Type", "application/json");
+      res.status(200).send(JSON.stringify(chirps));
+      return;
+    } catch (error) {
+      throw error;
+    }
+  }
+
   try {
     const chirps = await getChirps();
     res.header("Content-Type", "application/json");
